@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TaskGo - DeepSeek AI Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .container {
+        background: #f5f5f5;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 10px 0;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      textarea {
+        width: 100%;
+        height: 100px;
+        margin: 10px 0;
+      }
+      .result {
+        background: white;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+      }
+      .loading {
+        color: #666;
+        font-style: italic;
+      }
+      .error {
+        color: red;
+      }
+      .success {
+        color: green;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🤖 TaskGo - DeepSeek AI Test</h1>
+
+    <div class="container">
+      <h3>Генерация технического задания</h3>
+      <textarea id="description" placeholder="Опишите ваш проект...">
+Создать мобильное приложение для заказа еды с доставкой</textarea
+      >
+      <button onclick="generateDescription()">🚀 Генерировать ТЗ</button>
+      <div id="result1" class="result" style="display: none"></div>
+    </div>
+
+    <div class="container">
+      <h3>Оценка проекта</h3>
+      <textarea id="estimateDesc" placeholder="Описание для оценки...">
+Разработка CRM системы для управления клиентами</textarea
+      >
+      <button onclick="estimateProject()">💰 Оценить проект</button>
+      <div id="result2" class="result" style="display: none"></div>
+    </div>
+
+    <div class="container">
+      <h3>Анализ сложности</h3>
+      <textarea id="complexityDesc" placeholder="Описание для анализа...">
+Создание системы машинного обучения с блокчейн интеграцией</textarea
+      >
+      <button onclick="analyzeComplexity()">🎯 Анализировать сложность</button>
+      <div id="result3" class="result" style="display: none"></div>
+    </div>
+
+    <script>
+      const API_BASE = "http://localhost:3001/api/ai";
+
+      async function makeRequest(endpoint, data) {
+        try {
+          const response = await fetch(`${API_BASE}${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          return await response.json();
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+
+      async function generateDescription() {
+        const resultDiv = document.getElementById("result1");
+        const description = document.getElementById("description").value;
+
+        resultDiv.style.display = "block";
+        resultDiv.innerHTML =
+          '<div class="loading">🤖 DeepSeek генерирует техническое задание...</div>';
+
+        const result = await makeRequest("/generate-description", {
+          briefDescription: description,
+        });
+
+        if (result.success) {
+          resultDiv.innerHTML = `
+                    <div class="success">✅ Успешно сгенерировано!</div>
+                    <h4>📝 Техническое задание:</h4>
+                    <p>${result.data.detailedDescription}</p>
+                    <h4>📊 Оценка:</h4>
+                    <ul>
+                        <li>⏱️ Время: ${result.data.estimatedHours} часов</li>
+                        <li>💰 Стоимость: ${result.data.estimatedCost?.toLocaleString()} руб.</li>
+                        <li>🛠️ Технологии: ${
+                          result.data.technologies?.join(", ") || "не указаны"
+                        }</li>
+                    </ul>
+                    <h4>🎯 Этапы разработки:</h4>
+                    <ul>${
+                      result.data.suggestedMilestones
+                        ?.map((m) => `<li>${m}</li>`)
+                        .join("") || "<li>Этапы не определены</li>"
+                    }</ul>
+                `;
+        } else {
+          resultDiv.innerHTML = `<div class="error">❌ Ошибка: ${
+            result.error || "Неизвестная ошибка"
+          }</div>`;
+        }
+      }
+
+      async function estimateProject() {
+        const resultDiv = document.getElementById("result2");
+        const description = document.getElementById("estimateDesc").value;
+
+        resultDiv.style.display = "block";
+        resultDiv.innerHTML =
+          '<div class="loading">🤖 DeepSeek оценивает проект...</div>';
+
+        const result = await makeRequest("/estimate", { description });
+
+        if (result.success) {
+          resultDiv.innerHTML = `
+                    <div class="success">✅ Оценка завершена!</div>
+                    <ul>
+                        <li>⏱️ Время разработки: ${result.data.hours} часов</li>
+                        <li>💰 Примерная стоимость: ${result.data.cost?.toLocaleString()} руб.</li>
+                        <li>🎯 Уровень сложности: ${result.data.complexity}</li>
+                    </ul>
+                `;
+        } else {
+          resultDiv.innerHTML = `<div class="error">❌ Ошибка: ${
+            result.error || "Неизвестная ошибка"
+          }</div>`;
+        }
+      }
+
+      async function analyzeComplexity() {
+        const resultDiv = document.getElementById("result3");
+        const description = document.getElementById("complexityDesc").value;
+
+        resultDiv.style.display = "block";
+        resultDiv.innerHTML =
+          '<div class="loading">🤖 DeepSeek анализирует сложность...</div>';
+
+        const result = await makeRequest("/analyze-complexity", {
+          description,
+        });
+
+        if (result.success) {
+          resultDiv.innerHTML = `
+                    <div class="success">✅ Анализ завершен!</div>
+                    <h4>🎯 Уровень сложности: ${result.data.complexity}</h4>
+                    <h4>⚠️ Факторы сложности:</h4>
+                    <ul>${
+                      result.data.factors
+                        ?.map((f) => `<li>${f}</li>`)
+                        .join("") || "<li>Факторы не определены</li>"
+                    }</ul>
+                    <h4>💡 Рекомендации:</h4>
+                    <ul>${
+                      result.data.recommendations
+                        ?.map((r) => `<li>${r}</li>`)
+                        .join("") || "<li>Рекомендации не найдены</li>"
+                    }</ul>
+                `;
+        } else {
+          resultDiv.innerHTML = `<div class="error">❌ Ошибка: ${
+            result.error || "Неизвестная ошибка"
+          }</div>`;
+        }
+      }
+    </script>
+  </body>
+</html>

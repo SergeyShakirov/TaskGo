@@ -1,0 +1,19 @@
+{
+  "recommendations": [
+    "ms-vscode.vscode-typescript-next",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-json",
+    "bradlc.vscode-tailwindcss",
+    "msjsdiag.vscode-react-native",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "ms-vscode.vscode-jest",
+    "firsttris.vscode-jest-runner",
+    "gruntfuggly.todo-tree",
+    "ms-vscode.thunder-client",
+    "humao.rest-client",
+    "github.copilot",
+    "ms-vscode.hexeditor"
+  ]
+}
