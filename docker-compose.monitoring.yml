@@ -1,0 +1,163 @@
+version: '3.8'
+
+services:
+  # Main TaskGo stack (from docker-compose.prod.yml)
+  postgres:
+    extends:
+      file: docker-compose.prod.yml
+      service: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./monitoring/postgres-exporter/queries.yml:/etc/postgres-exporter/queries.yml:ro
+
+  redis:
+    extends:
+      file: docker-compose.prod.yml
+      service: redis
+
+  backend:
+    extends:
+      file: docker-compose.prod.yml
+      service: backend
+    volumes:
+      - ./backend/exports:/app/exports
+      - ./logs:/app/logs
+
+  nginx:
+    extends:
+      file: docker-compose.prod.yml
+      service: nginx
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: taskgo-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    networks:
+      - taskgo-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: taskgo-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - taskgo-network
+
+  # Log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: taskgo-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./monitoring/loki:/etc/loki
+      - loki_data:/tmp/loki
+    networks:
+      - taskgo-network
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: taskgo-promtail
+    restart: unless-stopped
+    volumes:
+      - /var/log:/var/log:ro
+      - ./logs:/app/logs:ro
+      - ./monitoring/promtail:/etc/promtail
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - taskgo-network
+
+  # Metrics exporters
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: taskgo-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - taskgo-network
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: taskgo-postgres-exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USER:-taskgo_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-taskgo}?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres-exporter/queries.yml"
+    volumes:
+      - ./monitoring/postgres-exporter/queries.yml:/etc/postgres-exporter/queries.yml:ro
+    depends_on:
+      - postgres
+    networks:
+      - taskgo-network
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: taskgo-redis-exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+    depends_on:
+      - redis
+    networks:
+      - taskgo-network
+
+  # Uptime monitoring
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: taskgo-uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - uptime_data:/app/data
+    networks:
+      - taskgo-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  uptime_data:
+
+networks:
+  taskgo-network:
+    driver: bridge
